@@ -68,6 +68,12 @@ template <typename Dtype>
 void caffe_div(const int N, const Dtype* a, const Dtype* b, Dtype* y);
 
 template <typename Dtype>
+void caffe_div_checkzero(const int N, const Dtype* a, const Dtype* b, Dtype* y);
+
+template <typename Dtype>
+void caffe_inv(const int N, const Dtype* a, Dtype* y);
+
+template <typename Dtype>
 void caffe_powx(const int n, const Dtype* a, const Dtype b, Dtype* y);
 
 unsigned int caffe_rng_rand();
@@ -114,7 +120,18 @@ template<typename Dtype>
 inline int8_t caffe_sign(Dtype val) {
   return (Dtype(0) < val) - (val < Dtype(0));
 }
-
+template<typename Dtype>
+inline void caffe_cpu_if_zerout(int n, const Dtype *x, Dtype *y, Dtype thre) {
+  for (int i = 0; i < n; ++i ){
+    y[i] = (x[i] <= thre && x[i] >= (-thre)) ? 1 : 0;
+  }
+}
+template<typename Dtype>
+inline void caffe_cpu_if_nonzerout(int n, const Dtype *x, Dtype *y, Dtype thre) {
+  for (int i = 0; i < n; ++i ){
+    y[i] = (x[i] <= thre && x[i] >= (-thre)) ? 0 : 1;
+  }
+}
 // The following two macros are modifications of DEFINE_VSL_UNARY_FUNC
 //   in include/caffe/util/mkl_alternate.hpp authored by @Rowland Depp.
 // Please refer to commit 7e8ef25c7 of the boost-eigen branch.
@@ -145,6 +162,34 @@ DEFINE_CAFFE_CPU_UNARY_FUNC(fabs, y[i] = std::fabs(x[i]))
 template <typename Dtype>
 void caffe_cpu_scale(const int n, const Dtype alpha, const Dtype *x, Dtype* y);
 
+//get if columns(true)/rows(false) in matrix X are all zeros
+template <typename Dtype>
+void caffe_cpu_if_all_zero(const int M, const int N, const Dtype *X, int* y, bool dimen=true);
+
+//get the mask(0) of all-zero columns and rows
+template <typename Dtype>
+void caffe_cpu_all_zero_mask(const int M, const int N, const Dtype *X, Dtype* y);
+
+//get column(true)/row(false) sparsity in matrix
+template <typename Dtype>
+Dtype caffe_cpu_group_sparsity(const int M, const int N, const Dtype *X, bool dimen=true);
+
+template <typename Dtype>
+Dtype caffe_cpu_fiber_sparsity(const int I, const int J, const int K, const Dtype *X, int mode, Dtype thre);
+
+template <typename Dtype>
+Dtype caffe_cpu_slice_sparsity(const int I, const int J, const int K, const Dtype *X, int mode, Dtype thre);
+
+//get masked cols
+template <typename Dtype>
+void caffe_cpu_del_zero_cols(const int M, const int N, const Dtype *x, Dtype *y, int * left_cols, const int* mask);
+
+//get sqrt sum of weights within blocks and copy them at each position
+template <typename Dtype>
+void caffe_cpu_block_group_lasso(const int n, const int c,
+		const int blk_size_n, const int blk_size_c,
+		const Dtype *x, Dtype* y);
+
 #ifndef CPU_ONLY  // GPU
 
 // Decaf gpu gemm provides an interface that is almost the same as the cpu
@@ -164,6 +209,18 @@ void caffe_gpu_gemv(const CBLAS_TRANSPOSE TransA, const int M, const int N,
 template <typename Dtype>
 void caffe_gpu_axpy(const int N, const Dtype alpha, const Dtype* X,
     Dtype* Y);
+
+template <typename Dtype>
+void caffe_gpu_zerout(void * mutable_gpu_data, int count, Dtype th);
+
+template <typename Dtype>
+void caffe_gpu_zerout(int count, const Dtype *x, Dtype *y, Dtype th);
+
+template <typename Dtype>
+void caffe_gpu_zerout(int count, Dtype *x, const Dtype *thresholds, int thresholds_len, Dtype weight);
+
+template <typename Dtype>
+void caffe_gpu_shrinkage(void * mutable_gpu_data, int count, Dtype th);
 
 template <typename Dtype>
 void caffe_gpu_axpby(const int N, const Dtype alpha, const Dtype* X,
@@ -204,6 +261,12 @@ void caffe_gpu_mul(const int N, const Dtype* a, const Dtype* b, Dtype* y);
 
 template <typename Dtype>
 void caffe_gpu_div(const int N, const Dtype* a, const Dtype* b, Dtype* y);
+
+template <typename Dtype>
+void caffe_gpu_div_checkzero(const int N, const Dtype* a, const Dtype* b, Dtype* y);
+
+template <typename Dtype>
+void caffe_gpu_inv(const int N, const Dtype* a, Dtype* y);
 
 template <typename Dtype>
 void caffe_gpu_abs(const int n, const Dtype* a, Dtype* y);
@@ -249,6 +312,18 @@ template<typename Dtype>
 void caffe_gpu_sign(const int n, const Dtype* x, Dtype* y);
 
 template<typename Dtype>
+void caffe_gpu_if_zerout(const int n, const Dtype* x, Dtype* y, Dtype th);
+
+template<typename Dtype>
+void caffe_gpu_if_zerout(const int n, const Dtype* x, Dtype* y, const Dtype *thresholds, int thresholds_len, Dtype weight);
+
+template<typename Dtype>
+void caffe_gpu_if_nonzerout(const int n, const Dtype* x, Dtype* y, Dtype th);
+
+template<typename Dtype>
+void caffe_gpu_eltwise_multi(const int n, const Dtype* x, Dtype* y);
+
+template<typename Dtype>
 void caffe_gpu_sgnbit(const int n, const Dtype* x, Dtype* y);
 
 template <typename Dtype>
@@ -263,6 +338,18 @@ __global__ void name##_kernel(const int n, const Dtype* x, Dtype* y) { \
   CUDA_KERNEL_LOOP(index, n) { \
     operation; \
   } \
+} \
+template <> \
+void caffe_gpu_##name<int>(const int n, const int* x, int* y) { \
+	NOT_IMPLEMENTED; \
+} \
+template <> \
+void caffe_gpu_##name<unsigned int>(const int n, const unsigned int* x, unsigned int* y) { \
+	NOT_IMPLEMENTED; \
+} \
+template <> \
+void caffe_gpu_##name<unsigned long>(const int n, const unsigned long* x, unsigned long* y) { \
+	NOT_IMPLEMENTED; \
 } \
 template <> \
 void caffe_gpu_##name<float>(const int n, const float* x, float* y) { \

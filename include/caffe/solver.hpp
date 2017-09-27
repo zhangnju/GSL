@@ -94,6 +94,11 @@ class Solver {
    */
   virtual inline const char* type() const { return ""; }
 
+  static Dtype getPruneThreshold() { return prune_threshold_; }
+  static Dtype getMeasureThreshold() { return measure_threshold_; }
+
+  virtual void checkIfLearnableParameterResized() { }
+
  protected:
   // Make and apply the update value for the current iteration.
   virtual void ApplyUpdate() = 0;
@@ -114,6 +119,7 @@ class Solver {
   int current_step_;
   shared_ptr<Net<Dtype> > net_;
   vector<shared_ptr<Net<Dtype> > > test_nets_;
+  Dtype total_regularization_term_;
   vector<Callback*> callbacks_;
   vector<Dtype> losses_;
   Dtype smoothed_loss_;
@@ -124,6 +130,8 @@ class Solver {
 
   // True iff a request to stop early was received.
   bool requested_early_exit_;
+
+  static Dtype prune_threshold_, measure_threshold_;
 
   // Timing information, handy to tune e.g. nbr of GPUs
   Timer iteration_timer_;
