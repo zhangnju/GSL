@@ -168,9 +168,22 @@ Dtype* Blob<Dtype>::mutable_gpu_diff() {
 }
 
 template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_cpu_connectivity() {
+  CHECK(connectivity_);
+  return static_cast<Dtype*>(connectivity_->mutable_cpu_data());
+}
+
+template <typename Dtype>
+Dtype* Blob<Dtype>::mutable_gpu_connectivity() {
+  CHECK(connectivity_);
+  return static_cast<Dtype*>(connectivity_->mutable_gpu_data());
+}
+
+template <typename Dtype>
 void Blob<Dtype>::ShareData(const Blob& other) {
   CHECK_EQ(count_, other.count());
   data_ = other.data();
+  connectivity_ = other.connectivity();
 }
 
 template <typename Dtype>
@@ -184,6 +197,7 @@ void Blob<Dtype>::ShareDiff(const Blob& other) {
 // Blob<int> or Blob<unsigned int>.
 template <> void Blob<unsigned int>::Update() { NOT_IMPLEMENTED; }
 template <> void Blob<int>::Update() { NOT_IMPLEMENTED; }
+template <> void Blob<long>::Update() { NOT_IMPLEMENTED; }
 
 template <typename Dtype>
 void Blob<Dtype>::Update() {
@@ -191,6 +205,11 @@ void Blob<Dtype>::Update() {
   switch (data_->head()) {
   case SyncedMemory::HEAD_AT_CPU:
     // perform computation on CPU
+    if (connectivity_.get()) {
+      caffe_cpu_eltwise_multi(count_,
+          static_cast<const Dtype*>(connectivity_->cpu_data()),
+          static_cast<Dtype*>(diff_->mutable_cpu_data()) );
+    }
     caffe_axpy<Dtype>(count_, Dtype(-1),
         static_cast<const Dtype*>(diff_->cpu_data()),
         static_cast<Dtype*>(data_->mutable_cpu_data()));
@@ -199,6 +218,11 @@ void Blob<Dtype>::Update() {
   case SyncedMemory::SYNCED:
 #ifndef CPU_ONLY
     // perform computation on GPU
+    if (connectivity_.get()) {
+      caffe_gpu_eltwise_multi(count_,
+          static_cast<const Dtype*>(connectivity_->gpu_data()),
+          static_cast<Dtype*>(diff_->mutable_gpu_data()) );
+    }
     caffe_gpu_axpy<Dtype>(count_, Dtype(-1),
         static_cast<const Dtype*>(diff_->gpu_data()),
         static_cast<Dtype*>(data_->mutable_gpu_data()));
@@ -348,6 +372,11 @@ template <> int Blob<int>::asum_diff() const {
   return 0;
 }
 
+template <> long Blob<long>::asum_diff() const {
+  NOT_IMPLEMENTED;
+  return 0;
+}
+
 template <typename Dtype>
 Dtype Blob<Dtype>::asum_diff() const {
   if (!diff_) { return 0; }
@@ -379,6 +408,11 @@ template <> unsigned int Blob<unsigned int>::sumsq_data() const {
 }
 
 template <> int Blob<int>::sumsq_data() const {
+  NOT_IMPLEMENTED;
+  return 0;
+}
+
+template <> long Blob<long>::sumsq_data() const {
   NOT_IMPLEMENTED;
   return 0;
 }
@@ -420,6 +454,11 @@ template <> int Blob<int>::sumsq_diff() const {
   return 0;
 }
 
+template <> long Blob<long>::sumsq_diff() const {
+  NOT_IMPLEMENTED;
+  return 0;
+}
+
 template <typename Dtype>
 Dtype Blob<Dtype>::sumsq_diff() const {
   Dtype sumsq;
@@ -455,6 +494,10 @@ template <> void Blob<int>::scale_data(int scale_factor) {
   NOT_IMPLEMENTED;
 }
 
+template <> void Blob<long>::scale_data(long scale_factor) {
+  NOT_IMPLEMENTED;
+}
+
 template <typename Dtype>
 void Blob<Dtype>::scale_data(Dtype scale_factor) {
   Dtype* data;
@@ -485,6 +528,10 @@ template <> void Blob<unsigned int>::scale_diff(unsigned int scale_factor) {
 }
 
 template <> void Blob<int>::scale_diff(int scale_factor) {
+  NOT_IMPLEMENTED;
+}
+
+template <> void Blob<long>::scale_diff(long scale_factor) {
   NOT_IMPLEMENTED;
 }
 

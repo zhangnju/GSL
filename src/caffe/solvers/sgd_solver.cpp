@@ -26,8 +26,6 @@ template <typename Dtype>
 Dtype SGDSolver<Dtype>::GetLearningRate() {
   Dtype rate;
   const string& lr_policy = this->param_.lr_policy();
-
-
   if (lr_policy == "fixed") {
     rate = this->param_.base_lr();
   } else if (lr_policy == "step") {
